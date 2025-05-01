@@ -236,7 +236,7 @@ const CountriesTable = () => {
                   </td>
                   <td className="py-4 px-6 text-gray-900">
                     <Link 
-                      to={`/country/${country.cca3}`}
+                      to={`/login`}
                       className="hover:text-blue-600 transition-colors duration-200"
                     >
                       {country.name.common}
