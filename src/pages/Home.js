@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
@@ -10,7 +10,6 @@ function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('');
-  const [isRegionOpen, setIsRegionOpen] = useState(false);
   const { user, addToFavorites, removeFromFavorites, isFavorite } = useAuth();
   const navigate = useNavigate();
 
@@ -181,17 +180,6 @@ function Home() {
             </div>
           </div>
         </div>
-
-        {/* Table View Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => navigate('/countries-table')}
-            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl"
-          >
-            Table View
-          </button>
-        </div>
-
         {/* Countries Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {filteredCountries.length === 0 ? (
@@ -266,10 +254,8 @@ function Home() {
           )}
         </div>
       </div>
-      
-      
     </div>
   );
 }
 
-export default Home; 
+export default Home;
