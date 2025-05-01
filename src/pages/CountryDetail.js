@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,11 +12,7 @@ function CountryDetail() {
   const { user, addToFavorites, removeFromFavorites, isFavorite } = useAuth();
   const [coatOfArmsLoading, setCoatOfArmsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchCountry();
-  }, [countryCode]);
-
-  const fetchCountry = async () => {
+  const fetchCountry = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -34,7 +30,11 @@ function CountryDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [countryCode]);
+
+  useEffect(() => {
+    fetchCountry();
+  }, [fetchCountry]);
 
   const handleFavoriteClick = () => {
     if (!user) return;
@@ -161,7 +161,8 @@ function CountryDetail() {
 
             {/* Quick Stats */}
             <div className="space-y-6">
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white" data-testid="country-heading"> {Object.values(country.name.nativeName || {})[0]?.common || 'N/A'}
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white" data-testid="country-heading"> 
+                {Object.values(country.name.nativeName || {})[0]?.common || 'N/A'}
               </h1>
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
@@ -425,4 +426,4 @@ function CountryDetail() {
   );
 }
 
-export default CountryDetail; 
+export default CountryDetail;
