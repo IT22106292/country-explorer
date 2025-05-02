@@ -4,26 +4,49 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 function Home() {
+  // Initialize state from localStorage with fallback
   const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState('');
-  const { user, addToFavorites, removeFromFavorites, isFavorite } = useAuth();
+  const [searchQuery, setSearchQuery] = useState(() => {
+    try {
+      return localStorage.getItem('searchQuery') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [selectedRegion, setSelectedRegion] = useState(() => {
+    try {
+      return localStorage.getItem('selectedRegion') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    try {
+      return localStorage.getItem('selectedLanguage') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  // Safely access useAuth with fallback
+  const auth = useAuth();
+  const { user, addToFavorites, removeFromFavorites, isFavorite } = auth || {};
   const navigate = useNavigate();
 
+  // Fetch countries
   useEffect(() => {
     const fetchCountries = async () => {
       try {
         const response = await axios.get('https://restcountries.com/v3.1/all');
-        const sortedCountries = response.data.sort((a, b) => 
+        const sortedCountries = response.data.sort((a, b) =>
           a.name.common.localeCompare(b.name.common)
         );
         setCountries(sortedCountries);
         setLoading(false);
       } catch (err) {
-        setError('Failed to fetch countries');
+        setError('Failed to fetch countries. Please try again later.');
         setLoading(false);
       }
     };
@@ -31,19 +54,44 @@ function Home() {
     fetchCountries();
   }, []);
 
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('searchQuery', searchQuery);
+    } catch {
+      console.warn('Failed to save searchQuery to localStorage');
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('selectedRegion', selectedRegion);
+    } catch {
+      console.warn('Failed to save selectedRegion to localStorage');
+    }
+  }, [selectedRegion]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('selectedLanguage', selectedLanguage);
+    } catch {
+      console.warn('Failed to save selectedLanguage to localStorage');
+    }
+  }, [selectedLanguage]);
+
   const handleFavoriteClick = (country, e) => {
-    e.stopPropagation(); // Add this line to stop event bubbling
+    e.stopPropagation();
     e.preventDefault();
-    
+
     if (!user) {
       navigate('/login');
       return;
     }
-  
-    if (isFavorite(country.cca3)) {
-      removeFromFavorites(country.cca3);
+
+    if (typeof isFavorite === 'function' && isFavorite(country.cca3)) {
+      typeof removeFromFavorites === 'function' && removeFromFavorites(country.cca3);
     } else {
-      addToFavorites(country);
+      typeof addToFavorites === 'function' && addToFavorites(country);
     }
   };
 
@@ -51,29 +99,39 @@ function Home() {
     navigate(`/country/${countryCode}`);
   };
 
-  const filteredCountries = countries.filter(country => {
+  // Reset filters and clear localStorage
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedRegion('');
+    setSelectedLanguage('');
+    try {
+      localStorage.removeItem('searchQuery');
+      localStorage.removeItem('selectedRegion');
+      localStorage.removeItem('selectedLanguage');
+    } catch {
+      console.warn('Failed to clear localStorage');
+    }
+  };
+
+  const filteredCountries = countries.filter((country) => {
     const matchesSearch = country.name.common.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRegion = !selectedRegion || country.region === selectedRegion;
-    
-    const matchesLanguage = !selectedLanguage || (
-      country.languages && 
-      Object.values(country.languages).some(language => 
-        language.toLowerCase().trim() === selectedLanguage.toLowerCase().trim()
-      )
-    );
+    const matchesLanguage =
+      !selectedLanguage ||
+      (country.languages &&
+        Object.values(country.languages).some((language) =>
+          language.toLowerCase().trim() === selectedLanguage.toLowerCase().trim()
+        ));
 
     return matchesSearch && matchesRegion && matchesLanguage;
   });
 
-  const regions = [...new Set(countries.map(country => country.region))].filter(Boolean);
-  
-  // Extract unique languages
-  const languages = [...new Set(
-    countries.flatMap(country => 
-      country.languages ? Object.values(country.languages) : []
-    )
-  )]
-    .map(name => ({ name: name.trim() }))
+  const regions = [...new Set(countries.map((country) => country.region))].filter(Boolean);
+
+  const languages = [
+    ...new Set(countries.flatMap((country) => (country.languages ? Object.values(country.languages) : [])))
+  ]
+    .map((name) => ({ name: name.trim() }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   if (loading) {
@@ -101,7 +159,7 @@ function Home() {
             {/* Search Bar */}
             <div className="flex-grow max-w-2xl">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:from-blue-500/30 group-hover:via-purple-500/30 group-hover:to-blue-500/30"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:from-blue-500/30 group-hover:via-purple-500/30 group-hover:to-blue.ConcurrentMode"></div>
                 <div className="relative flex items-center">
                   <input
                     type="text"
@@ -147,7 +205,12 @@ function Home() {
                     ))}
                   </select>
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <svg className="w-5 h-5 text-blue-500/70 dark:text-purple-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-5 h-5 text-blue-500/70 dark:text-purple-400/70"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
@@ -171,15 +234,29 @@ function Home() {
                     ))}
                   </select>
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <svg className="w-5 h-5 text-blue-500/70 dark:text-purple-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-5 h-5 text-blue-500/70 dark:text-purple-400/70"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
                 </div>
               </div>
+
+              {/* Reset Filters Button */}
+              <button
+                onClick={handleResetFilters}
+                className="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-300"
+              >
+                Reset Filters
+              </button>
             </div>
           </div>
         </div>
+
         {/* Countries Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {filteredCountries.length === 0 ? (
@@ -202,25 +279,55 @@ function Home() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-blue-900/90 via-purple-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </div>
-                
+
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-blue-900/95 via-purple-900/80 to-transparent backdrop-blur-md text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-500">
                   <h3 className="text-xl font-bold mb-3">{country.name.common}</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center space-x-2">
-                      <svg className="w-4 h-4 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      <svg
+                        className="w-4 h-4 text-blue-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                        />
                       </svg>
                       <span>Capital: {country.capital?.[0] || 'N/A'}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <svg className="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      <svg
+                        className="w-4 h-4 text-purple-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                        />
                       </svg>
                       <span>Population: {country.population.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <svg className="w-4 h-4 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        className="w-4 h-4 text-blue-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
                       <span>Region: {country.region}</span>
                     </div>
@@ -230,14 +337,14 @@ function Home() {
                 <button
                   onClick={(e) => handleFavoriteClick(country, e)}
                   className={`absolute top-2 right-2 p-2 rounded-full transition-all duration-300 ${
-                    isFavorite(country.cca3)
+                    isFavorite && isFavorite(country.cca3)
                       ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
                       : 'bg-white/90 text-gray-800 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-500 hover:text-white hover:shadow-lg'
                   }`}
                 >
                   <svg
                     className="w-5 h-5"
-                    fill={isFavorite(country.cca3) ? 'currentColor' : 'none'}
+                    fill={isFavorite && isFavorite(country.cca3) ? 'currentColor' : 'none'}
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
