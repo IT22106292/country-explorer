@@ -54,5 +54,11 @@ describe('Home Component', () => {
     localStorage.clear();
   });
 
-  
+  test('renders loading state initially', async () => {
+    axios.get.mockImplementationOnce(() => new Promise(() => {}));
+    await act(async () => {
+      renderHome();
+    });
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
 });
