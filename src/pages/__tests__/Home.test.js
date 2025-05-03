@@ -73,5 +73,23 @@ describe('Home Component', () => {
       expect(screen.getByText('Brazil')).toBeInTheDocument();
     });
   });
+
+  test('filters countries by search query', async () => {
+    axios.get.mockResolvedValueOnce({ data: mockCountries });
+    await act(async () => {
+      renderHome();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('India')).toBeInTheDocument();
+      expect(screen.getByText('Brazil')).toBeInTheDocument();
+    });
+
+    const searchInput = screen.getByPlaceholderText('Search for a country...');
+    fireEvent.change(searchInput, { target: { value: 'bra' } });
+
+    expect(screen.queryByText('India')).not.toBeInTheDocument();
+    expect(screen.getByText('Brazil')).toBeInTheDocument();
+  });
   
 });
