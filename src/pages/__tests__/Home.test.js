@@ -91,5 +91,38 @@ describe('Home Component', () => {
     expect(screen.queryByText('India')).not.toBeInTheDocument();
     expect(screen.getByText('Brazil')).toBeInTheDocument();
   });
+
+  test('filters countries by region', async () => {
+    axios.get.mockResolvedValueOnce({ data: mockCountries });
+    await act(async () => {
+      renderHome();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('India')).toBeInTheDocument();
+      expect(screen.getByText('Brazil')).toBeInTheDocument();
+    });
+
+    const regionSelect = screen.getByRole('combobox', { name: /filter by region/i });
+    fireEvent.change(regionSelect, { target: { value: 'Asia' } });
+
+    expect(screen.getByText('India')).toBeInTheDocument();
+    expect(screen.queryByText('Brazil')).not.toBeInTheDocument();
+  });
+
+  test('navigates to country detail page when clicking a country card', async () => {
+    axios.get.mockResolvedValueOnce({ data: mockCountries });
+    await act(async () => {
+      renderHome();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('India')).toBeInTheDocument();
+    });
+
+    const indiaCard = screen.getByText('India').closest('div[role="button"]');
+    fireEvent.click(indiaCard);
+    expect(mockNavigate).toHaveBeenCalledWith('/country/IND');
+  });
   
 });
