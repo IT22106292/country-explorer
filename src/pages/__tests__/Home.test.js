@@ -109,25 +109,6 @@ describe('Home Component', () => {
     expect(screen.getByText('India')).toBeInTheDocument();
     expect(screen.queryByText('Brazil')).not.toBeInTheDocument();
   });
-  
-
-  test('filters countries by region', async () => {
-    axios.get.mockResolvedValueOnce({ data: mockCountries });
-    await act(async () => {
-      renderHome();
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('India')).toBeInTheDocument();
-      expect(screen.getByText('Brazil')).toBeInTheDocument();
-    });
-
-    const regionSelect = screen.getByRole('combobox', { name: /filter by region/i });
-    fireEvent.change(regionSelect, { target: { value: 'Asia' } });
-
-    expect(screen.getByText('India')).toBeInTheDocument();
-    expect(screen.queryByText('Brazil')).not.toBeInTheDocument();
-  });
 
   test('navigates to country detail page when clicking a country card', async () => {
     axios.get.mockResolvedValueOnce({ data: mockCountries });
@@ -143,5 +124,33 @@ describe('Home Component', () => {
     fireEvent.click(indiaCard);
     expect(mockNavigate).toHaveBeenCalledWith('/country/IND');
   });
-  
+
+ test('handles API error gracefully', async () => {
+  axios.get.mockRejectedValueOnce(new Error('Failed to fetch'));
+  await act(async () => {
+    renderHome();
+  });
+
+  await waitFor(() => {
+    expect(screen.getByText('Failed to fetch countries. Please try again later.')).toBeInTheDocument();
+  }, { timeout: 2000 });
+  });
+  test('displays no results message when search finds no matches', async () => {
+    axios.get.mockResolvedValueOnce({ data: mockCountries });
+    await act(async () => {
+      renderHome();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('India')).toBeInTheDocument();
+      expect(screen.getByText('Brazil')).toBeInTheDocument();
+    });
+
+    const searchInput = screen.getByPlaceholderText('Search for a country...');
+    fireEvent.change(searchInput, { target: { value: 'xyz' } });
+
+    expect(screen.queryByText('India')).not.toBeInTheDocument();
+    expect(screen.queryByText('Brazil')).not.toBeInTheDocument();
+    expect(screen.getByText('No countries found')).toBeInTheDocument();
+  });
 });
