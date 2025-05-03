@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -30,12 +30,65 @@ function Home() {
     }
   });
 
-  // Safely access useAuth with fallback
   const auth = useAuth();
   const { user, addToFavorites, removeFromFavorites, isFavorite } = auth || {};
   const navigate = useNavigate();
 
-  // Fetch countries
+  // Utility to clear filters and localStorage
+  const resetFilters = useCallback(() => {
+    setSearchQuery('');
+    setSelectedRegion('');
+    setSelectedLanguage('');
+    try {
+      localStorage.removeItem('searchQuery');
+      localStorage.removeItem('selectedRegion');
+      localStorage.removeItem('selectedLanguage');
+    } catch {
+      console.warn('Failed to clear localStorage');
+    }
+  }, []);
+
+  // Reset filters when user logs out or a new user logs in
+  useEffect(() => {
+    // Store previous user ID to detect changes
+    let prevUserId = null;
+    try {
+      prevUserId = localStorage.getItem('lastUserId') || null;
+    } catch {
+      console.warn('Failed to access lastUserId from localStorage');
+    }
+
+    const currentUserId = user ? user.id : null;
+
+    // Reset if user logs out (user is null) or a different user logs in
+    if (!user || (prevUserId !== null && currentUserId !== prevUserId)) {
+      resetFilters();
+    }
+
+    // Update lastUserId in localStorage
+    try {
+      if (currentUserId) {
+        localStorage.setItem('lastUserId', currentUserId);
+      } else {
+        localStorage.removeItem('lastUserId');
+      }
+    } catch {
+      console.warn('Failed to update lastUserId in localStorage');
+    }
+  }, [user, resetFilters]);
+
+  // Save state to localStorage (combined for performance)
+  useEffect(() => {
+    try {
+      localStorage.setItem('searchQuery', searchQuery);
+      localStorage.setItem('selectedRegion', selectedRegion);
+      localStorage.setItem('selectedLanguage', selectedLanguage);
+    } catch {
+      console.warn('Failed to save filters to localStorage');
+    }
+  }, [searchQuery, selectedRegion, selectedLanguage]);
+
+  // Fetch countries (unchanged)
   useEffect(() => {
     const fetchCountries = async () => {
       try {
@@ -50,44 +103,17 @@ function Home() {
         setLoading(false);
       }
     };
-
     fetchCountries();
   }, []);
 
-  // Save state to localStorage whenever it changes
-  useEffect(() => {
-    try {
-      localStorage.setItem('searchQuery', searchQuery);
-    } catch {
-      console.warn('Failed to save searchQuery to localStorage');
-    }
-  }, [searchQuery]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('selectedRegion', selectedRegion);
-    } catch {
-      console.warn('Failed to save selectedRegion to localStorage');
-    }
-  }, [selectedRegion]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('selectedLanguage', selectedLanguage);
-    } catch {
-      console.warn('Failed to save selectedLanguage to localStorage');
-    }
-  }, [selectedLanguage]);
-
+  // Rest of the code (unchanged)
   const handleFavoriteClick = (country, e) => {
     e.stopPropagation();
     e.preventDefault();
-
     if (!user) {
       navigate('/login');
       return;
     }
-
     if (typeof isFavorite === 'function' && isFavorite(country.cca3)) {
       typeof removeFromFavorites === 'function' && removeFromFavorites(country.cca3);
     } else {
@@ -99,22 +125,10 @@ function Home() {
     navigate(`/country/${countryCode}`);
   };
 
-  // Reset filters and clear localStorage
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setSelectedRegion('');
-    setSelectedLanguage('');
-    try {
-      localStorage.removeItem('searchQuery');
-      localStorage.removeItem('selectedRegion');
-      localStorage.removeItem('selectedLanguage');
-    } catch {
-      console.warn('Failed to clear localStorage');
-    }
-  };
-
   const filteredCountries = countries.filter((country) => {
-    const matchesSearch = country.name.common.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = country.name.common
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
     const matchesRegion = !selectedRegion || country.region === selectedRegion;
     const matchesLanguage =
       !selectedLanguage ||
@@ -122,14 +136,17 @@ function Home() {
         Object.values(country.languages).some((language) =>
           language.toLowerCase().trim() === selectedLanguage.toLowerCase().trim()
         ));
-
     return matchesSearch && matchesRegion && matchesLanguage;
   });
 
   const regions = [...new Set(countries.map((country) => country.region))].filter(Boolean);
 
   const languages = [
-    ...new Set(countries.flatMap((country) => (country.languages ? Object.values(country.languages) : [])))
+    ...new Set(
+      countries.flatMap((country) =>
+        country.languages ? Object.values(country.languages) : []
+      )
+    ),
   ]
     .map((name) => ({ name: name.trim() }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -153,20 +170,18 @@ function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex-grow max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 w-full">
-        {/* Header with search and filters */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            {/* Search Bar */}
             <div className="flex-grow max-w-2xl">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:from-blue-500/30 group-hover:via-purple-500/30 group-hover:to-blue.ConcurrentMode"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:from-blue-500/30 group-hover:via-purple-500/30 group-hover:to-blue-500/30"></div>
                 <div className="relative flex items-center">
                   <input
                     type="text"
                     placeholder="Search for a country..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-3 pl-12 rounded-lg border border-blue-200/50 dark:border-purple-200/50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-purple-500/30 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 transition-all duration-300"
+                    className="w-full px-4 py-3 pl-12 rounded-lg border border-blue-200/50 dark:border-purple-200/50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-purple-500/30  bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500/70 dark:placeholder-gray-400/70 transition-all duration-300"
                   />
                   <svg
                     className="absolute left-4 w-5 h-5 text-blue-500/70 dark:text-purple-400/70 transition-colors duration-300"
@@ -184,10 +199,7 @@ function Home() {
                 </div>
               </div>
             </div>
-
-            {/* Filters */}
             <div className="flex flex-wrap gap-4">
-              {/* Region Filter */}
               <div className="relative min-w-[200px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:from-blue-500/30 group-hover:via-purple-500/30 group-hover:to-blue-500/30"></div>
                 <div className="relative">
@@ -211,13 +223,16 @@ function Home() {
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 9l-7 7-7-7"
+                      />
                     </svg>
                   </div>
                 </div>
               </div>
-
-              {/* Language Filter */}
               <div className="relative min-w-[200px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:from-blue-500/30 group-hover:via-purple-500/30 group-hover:to-blue-500/30"></div>
                 <div className="relative">
@@ -240,15 +255,18 @@ function Home() {
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 9l-7 7-7-7"
+                      />
                     </svg>
                   </div>
                 </div>
               </div>
-
-              {/* Reset Filters Button */}
               <button
-                onClick={handleResetFilters}
+                onClick={resetFilters}
                 className="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-300"
               >
                 Reset Filters
@@ -256,8 +274,6 @@ function Home() {
             </div>
           </div>
         </div>
-
-        {/* Countries Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {filteredCountries.length === 0 ? (
             <div className="col-span-full text-center text-gray-600 dark:text-gray-400 py-8">
@@ -279,7 +295,6 @@ function Home() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-blue-900/90 via-purple-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </div>
-
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-blue-900/95 via-purple-900/80 to-transparent backdrop-blur-md text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-500">
                   <h3 className="text-xl font-bold mb-3">{country.name.common}</h3>
                   <div className="space-y-2 text-sm">
@@ -333,7 +348,6 @@ function Home() {
                     </div>
                   </div>
                 </div>
-
                 <button
                   onClick={(e) => handleFavoriteClick(country, e)}
                   className={`absolute top-2 right-2 p-2 rounded-full transition-all duration-300 ${
