@@ -91,5 +91,23 @@ describe('Home Component', () => {
     expect(screen.queryByText('India')).not.toBeInTheDocument();
     expect(screen.getByText('Brazil')).toBeInTheDocument();
   });
+
+  test('filters countries by region', async () => {
+    axios.get.mockResolvedValueOnce({ data: mockCountries });
+    await act(async () => {
+      renderHome();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('India')).toBeInTheDocument();
+      expect(screen.getByText('Brazil')).toBeInTheDocument();
+    });
+
+    const regionSelect = screen.getByRole('combobox', { name: /filter by region/i });
+    fireEvent.change(regionSelect, { target: { value: 'Asia' } });
+
+    expect(screen.getByText('India')).toBeInTheDocument();
+    expect(screen.queryByText('Brazil')).not.toBeInTheDocument();
+  });
   
 });
