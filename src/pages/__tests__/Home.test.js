@@ -61,4 +61,17 @@ describe('Home Component', () => {
     });
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
+
+  test('renders countries after loading', async () => {
+    axios.get.mockResolvedValueOnce({ data: mockCountries });
+    await act(async () => {
+      renderHome();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('India')).toBeInTheDocument();
+      expect(screen.getByText('Brazil')).toBeInTheDocument();
+    });
+  });
+  
 });
